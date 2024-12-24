@@ -1,0 +1,21 @@
+type: model
+materialize: true
+connector: clickhouse
+
+incremental: true
+
+state:
+  sql: SELECT toString(max(event_date)) as max_event_date FROM merge_table
+
+sql: >
+  SELECT *,
+    '{{ .state.max_event_date }}' as state
+  FROM file('demo/data/merge/insert-data.json','JSONEachRow',
+  'event_date DateTime, event_type String, demo String, event_value Float64')
+  {{ if incremental }} WHERE event_date > '{{ .state.max_event_date }}' {{ end }}
+
+output:
+  table: merge_table
+  incremental_strategy: merge
+  order_by: (event_date, demo)
+  engine: ReplacingMergeTree()

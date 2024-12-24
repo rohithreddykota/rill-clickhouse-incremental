@@ -1,0 +1,23 @@
+type: model
+connector: clickhouse
+
+refresh:
+      cron: "* * * * *"
+
+sql: >
+      WITH range AS
+      (
+            SELECT  now() - INTERVAL number {{ .env.granularity }} AS date_value
+            FROM numbers({{ .env.max_partitions }})
+      )
+      SELECT  toYear(date_value)                                                               AS yyyy
+            ,LPAD(toString(toMonth(date_value)),2,'0')                                         AS mm
+            ,LPAD(toString(toDayOfMonth(date_value)),2,'0')                                    AS dd
+            ,LPAD(toString(toHour(date_value)),2,'0')                                          AS hh
+            ,formatDateTime(date_value,'%Y-%m-%d %H:%i:%S')                                    AS dt_str
+            ,formatDateTime(toStartOfDay(date_value),'%Y-%m-%d %H:%i:%S')                      AS dt_trunc_day_str
+            ,formatDateTime(toStartOfHour(date_value),'%Y-%m-%d %H:%i:%S')                     AS dt_trunc_hour_str
+            ,formatDateTime(date_value + INTERVAL 1 {{ .env.granularity }},'%Y-%m-%d %H:%i:%S')                AS next_dt_str
+            ,formatDateTime(toStartOfHour(date_value + INTERVAL 1 {{ .env.granularity }}),'%Y-%m-%d %H:%i:%S') AS next_dt_trunc_hour_str
+            ,formatDateTime(toStartOfDay(date_value + INTERVAL 1 {{ .env.granularity }}),'%Y-%m-%d %H:%i:%S')  AS next_dt_trunc_day_str
+      FROM range;

@@ -1,0 +1,38 @@
+type: model
+materialize: true
+incremental: true
+
+refresh:
+  cron: "* * * * *" # At 5 minutes past the hour, every hour, every day
+  run_in_dev: true
+
+partitions:
+  connector: clickhouse
+  sql: >
+    WITH parts AS (
+      SELECT  DISTINCT toDateTime(partition) as partition
+      FROM system.parts
+      WHERE database = 'default'
+      AND table = 'partition_override_table'
+      AND active = 1
+    )
+    SELECT  DISTINCT dates.*, parts.partition
+    FROM gen_partitions dates
+    LEFT JOIN parts
+    ON toString(parts.partition) = toString(dates.dt_trunc_day_str)
+    WHERE (toDate(parts.partition) <= toDate('1970-01-01')) OR parts.partition IS NULL OR (toDate(dates.dt_trunc_day_str) > toDate(now()) - INTERVAL 3 {{ .env.granularity }})
+    ORDER BY dates.dt_trunc_day_str DESC
+
+
+connector: clickhouse
+sql: >
+  SELECT *, '{{ .partition.dt_trunc_day_str }}' as partition
+  FROM file('demo/data/partitions/part/{{ .partition.yyyy }}/{{ .partition.mm }}/{{ .partition.dd }}/*.json', 'JSONEachRow',
+    'event_date DateTime, event_type String, demo String, value Float64')
+
+output:
+  table: partition_override_table
+  incremental_strategy: partition_overwrite
+  partition_by: toStartOfDay(event_date)
+  order_by: event_date
+  engine: MergeTree()

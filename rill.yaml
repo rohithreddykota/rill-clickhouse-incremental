@@ -1,0 +1,21 @@
+compiler: rillv1
+
+display_name: "Untitled Rill Project"
+
+# These are example mock users to test your security policies.
+# Learn more: https://docs.rilldata.com/manage/security
+mock_users:
+  - email: john@yourcompany.com
+  - email: jane@partnercompany.com
+
+ignore_paths:
+  - /data
+  - /scratch
+
+olap_connector: clickhouse
+
+env:
+  max_partitions: 30
+  period_before_interval: "3 Day"
+  granularity: "Day"
+  dev_period_before_interval: "3 Day"
